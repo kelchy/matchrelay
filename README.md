@@ -14,6 +14,7 @@ This module has a dependency on the forward module and support multi proxies and
 optimizations as with the forward module.
 
 to build, add this line into plugin.cfg
+
 ~~~ txt
 ...
 secondary:secondary
@@ -23,6 +24,7 @@ loop:loop
 forward:forward
 ...
 ~~~
+
 take note of the order as ordinality of the plugins matter for coredns
 
 ## Syntax
@@ -45,9 +47,11 @@ example.org {
         relay 8.8.8.8:53 1.1.1.1:53
     }
 }
+~~~
 
 or by importing a file
 
+~~~ corefile
 example.org {
     matchrelay {
         import ./list.txt
