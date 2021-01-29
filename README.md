@@ -45,6 +45,7 @@ make
 or
 
 ~~~ txt
+go get github.com/kelchy/matchrelay
 go generate
 go build
 ~~~
