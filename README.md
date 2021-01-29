@@ -17,15 +17,37 @@ to build, add this line into plugin.cfg
 
 ~~~ txt
 ...
-secondary:secondary
-etcd:etcd
+chaos:chaos
+loadbalance:loadbalance
 matchrelay:github.com/kelchy/matchrelay
-loop:loop
-forward:forward
+cache:cache
+rewrite:rewrite
 ...
 ~~~
 
 take note of the order as ordinality of the plugins matter for coredns
+
+you may need to set git to use ssh
+~~~ txt
+git config --global url."git@github.com:".insteadOf "https://github.com/"
+~~~
+
+and set to private
+~~~ txt
+export GOPRIVATE=github.com/kelchy/matchrelay
+~~~
+
+then use "make" to build
+~~~ txt
+make
+~~~
+
+or
+
+~~~ txt
+go generate
+go build
+~~~
 
 ## Syntax
 
