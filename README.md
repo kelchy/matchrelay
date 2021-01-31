@@ -63,12 +63,16 @@ go build
 
 ~~~ txt
 matchrelay {
+    net <source ip>
     match ./list.txt
     reload 10s
-    net <source ip>
     relay <destination server>
 }
 ~~~
+"net" is a declaration of a network host/subnet
+"match" will look for a file containing list of declarations and "reload"
+will automatically reload the list if md5 of the file changes
+"relay" will round robin destinations for the matched requests
 
 ## Examples
 
