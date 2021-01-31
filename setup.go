@@ -3,10 +3,14 @@ package matchrelay
 import (
 	"net"
 	"strings"
+	"time"
+	"path/filepath"
+	"crypto/md5"
 
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
+	"github.com/coredns/coredns/plugin/pkg/log"
 
 	"github.com/infobloxopen/go-trees/iptree"
 )
@@ -30,9 +34,51 @@ func setup(c *caddy.Controller) error {
 		return plugin.Error(pluginName, err)
 	}
 
+	loop := make(chan bool)
+	c.OnStartup(func() error {
+		if mr.interval == 0 || mr.filename == "" {
+			return nil
+		}
+		s, e := fileOpen(mr.filename)
+		if e != nil {
+			log.Errorf("error opening matchrelay file %s", mr.filename)
+			return e
+		}
+		md5sum := md5.Sum(s)
+		mr.Reload(s)
+
+		go func() {
+			ticker := time.NewTicker(mr.interval)
+			for {
+				select {
+				case <-loop:
+					return
+				case <-ticker.C:
+					s, e := fileOpen(mr.filename)
+					if e != nil {
+						log.Errorf("error opening matchrelay file %s", mr.filename)
+						return
+					}
+					ms := md5.Sum(s)
+					if md5sum != ms {
+						log.Infof("Matchrelay new config MD5 = %x\n", ms)
+						md5sum = ms
+						mr.Reload(s)
+					}
+				}
+			}
+		}()
+		return nil
+	})
+
+	c.OnShutdown(func() error {
+		close(loop)
+		return nil
+	})
+
 	dnsserver.GetConfig(c).AddPlugin(func(next plugin.Handler) plugin.Handler {
 		mr.Next = next
-		return mr
+		return &mr
 	})
 
 	return nil
@@ -40,45 +86,36 @@ func setup(c *caddy.Controller) error {
 
 func parse(c *caddy.Controller) (MatchRelay, error) {
 	mr := New()
+	// matchrelay takes zone details from server block, not on config block
+	mr.zones = make([]string, len(c.ServerBlockKeys))
+	copy(mr.zones, c.ServerBlockKeys)
+	for i := range mr.zones {
+		mr.zones[i] = plugin.Host(mr.zones[i]).Normalize()
+	}
 	for c.Next() {
 		r := rule{}
-		r.zones = c.RemainingArgs()
-		if len(r.zones) == 0 {
-			// if empty, the zones from the configuration block are used.
-			r.zones = make([]string, len(c.ServerBlockKeys))
-			copy(r.zones, c.ServerBlockKeys)
-		}
-		for i := range r.zones {
-			r.zones[i] = plugin.Host(r.zones[i]).Normalize()
-		}
 		for c.NextBlock() {
-			p := policy{}
-
 			id := strings.ToLower(c.Val())
-			if id == "net" {
-				p.ftype = id
-				p.filter = iptree.NewTree()
-			} else if id != "relay" {
-				return mr, c.Errf("unexpected token %q; expect 'net' or 'relay'", c.Val())
-			}
-
 			remainingTokens := c.RemainingArgs()
 			if len(remainingTokens) == 0 {
 				return mr, c.Errf("empty token")
 			}
-			if id == "net" {
-				token := strings.ToLower(remainingTokens[0])
-				if token == "*" {
-					p.filter = newDefaultFilter()
-					break
+			switch id {
+			case "net":
+				// static rules
+				p := makePolicy(remainingTokens)
+				if p.filter != nil {
+					p.ftype = id
+					r.policies = append(r.policies, p)
 				}
-				token = normalize(token)
-				_, source, err := net.ParseCIDR(token)
+			case "reload":
+				// TODO: add jitter
+				d, err := time.ParseDuration(remainingTokens[0])
 				if err != nil {
-					return mr, c.Errf("illegal CIDR notation %q", token)
+					return mr, plugin.Error("invalid reload timer", err)
 				}
-				p.filter.InplaceInsertNet(source, struct{}{})
-			} else {
+				mr.interval = d
+			case "relay":
 				for len(remainingTokens) > 0 {
 					i := 0
 					for ; i < len(remainingTokens) ; i++ {
@@ -87,12 +124,44 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 					}
 					remainingTokens = remainingTokens[i:]
 				}
+			case "match":
+				// file based rules with own reload mechanism compatible with static rules above
+				fileName := strings.ToLower(remainingTokens[0])
+				config := dnsserver.GetConfig(c)
+				if !filepath.IsAbs(fileName) && config.Root != "" {
+					fileName = filepath.Join(config.Root, fileName)
+				}
+				mr.filename = fileName
+			default:
+				return mr, c.Errf("unexpected token %q; expect 'net', 'match', 'reload' or 'relay'", id)
 			}
-			r.policies = append(r.policies, p)
 		}
-		mr.Rules = append(mr.Rules, r)
+		if len(r.policies) > 0 {
+			mr.rules = append(mr.rules, r)
+		}
 	}
 	return mr, nil
+}
+
+// take the cidrs and build the policy
+func makePolicy(rule []string) policy {
+	p := policy{}
+
+	// TODO: handle multiple CIDR, watch out for inline comments which may end up in rule slice
+	token := strings.ToLower(rule[0])
+	if token == "*" {
+		p.filter = newDefaultFilter()
+		return p
+	}
+	token = normalize(token)
+	_, source, err := net.ParseCIDR(token)
+	if err != nil {
+		log.Errorf("illegal CIDR notation %q", token)
+		return p
+	}
+	p.filter = iptree.NewTree()
+	p.filter.InplaceInsertNet(source, struct{}{})
+	return p
 }
 
 // normalize appends '/32' for any single IPv4 address and '/128' for IPv6.

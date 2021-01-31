@@ -4,7 +4,7 @@ package matchrelay
 import (
 	"context"
 	"net"
-//	"strconv"
+	"time"
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/forward"
@@ -16,13 +16,16 @@ import (
 
 // MatchRelay is a plugin that matches your IP address used for connecting to CoreDNS.
 type MatchRelay struct{
-	fwd		*forward.Forward
 	Next		plugin.Handler
-	Rules		[]rule
+
+	fwd		*forward.Forward
+	rules		[]rule
+	zones		[]string
+	interval	time.Duration
+	filename	string
 }
 
 type rule struct {
-	zones		[]string
 	policies	[]policy
 }
 
@@ -42,12 +45,12 @@ func (mr MatchRelay) SetProxy(proxy string) {
 }
 
 // ServeDNS implements the plugin.Handler interface.
-func (mr MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
+func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
 
-	for _, rule := range mr.Rules {
+	for _, rule := range mr.rules {
 		// check zone.
-		zone := plugin.Zones(rule.zones).Matches(state.Name())
+		zone := plugin.Zones(mr.zones).Matches(state.Name())
 		if zone == "" {
 			continue
 		}

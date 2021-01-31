@@ -13,19 +13,28 @@ is normally doing.
 This module has a dependency on the forward module and support multi proxies and resource
 optimizations as with the forward module.
 
-to build, add this line into plugin.cfg
+to build, pull coredns code
+~~~ txt
+git clone https://github.com/coredns/coredns.git
+~~~
+
+add this line into plugin.cfg
 
 ~~~ txt
 ...
-chaos:chaos
-loadbalance:loadbalance
+etcd:etcd
+loop:loop
 matchrelay:github.com/kelchy/matchrelay
-cache:cache
-rewrite:rewrite
+forward:forward
+grpc:grpc
 ...
 ~~~
 
 take note of the order as ordinality of the plugins matter for coredns
+
+since cache is above matchrelay, cache may serve responses without hitting matchrelay
+this may cause unexpected behaviours, avoid using cache with matchrelay if the order of
+plugins is made this way
 
 you may need to set git to use ssh
 ~~~ txt
@@ -54,6 +63,8 @@ go build
 
 ~~~ txt
 matchrelay {
+    match ./list.txt
+    reload 10s
     net <source ip>
     relay <destination server>
 }
@@ -72,7 +83,12 @@ example.org {
 }
 ~~~
 
-or by importing a file
+or by importing a file instead of using the internal
+match and reload mechanism. note that if you use reload
+module, the whole Corefile will be loaded in each reload.
+if the number of zones or list is high, this may cause huge
+spikes in CPU which may bring down performance. For very
+dynamic environments, use the match and reload mechanism
 
 ~~~ corefile
 example.org {
