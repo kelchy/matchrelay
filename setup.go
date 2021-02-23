@@ -88,6 +88,7 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 	mr := New()
 	// matchrelay takes zone details from server block, not on config block
 	mr.zones = make([]string, len(c.ServerBlockKeys))
+	mr.domains = make(map[string]string)
 	copy(mr.zones, c.ServerBlockKeys)
 	for i := range mr.zones {
 		mr.zones[i] = plugin.Host(mr.zones[i]).Normalize()
@@ -101,6 +102,9 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 				return mr, c.Errf("empty token")
 			}
 			switch id {
+			case "domain":
+				// we don't support any options for now so set it to empty string
+				mr.domains[remainingTokens[0]] = ""
 			case "net":
 				// static rules
 				p := makePolicy(remainingTokens)

@@ -5,6 +5,7 @@ import (
 	"context"
 	"net"
 	"time"
+	"strings"
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/forward"
@@ -21,6 +22,7 @@ type MatchRelay struct{
 	fwd		*forward.Forward
 	rules		[]rule
 	zones		[]string
+	domains		map[string]string
 	interval	time.Duration
 	filename	string
 }
@@ -48,13 +50,29 @@ func (mr MatchRelay) SetProxy(proxy string) {
 func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
 
+	if len(mr.domains) > 0 {
+		// state.Name() will always have a trailing .
+		sArr := strings.Split(state.Name(), ".")
+		l := len(sArr)
+		if l > 2 {
+			base := sArr[l - 3] + "." + sArr[l - 2] + "."
+			for i := l - 3; i > 0; i = i - 1 {
+				str := sArr[i - 1] + "." + base
+				if _, ok := mr.domains[str]; ok {
+					mr.fwd.ServeDNS(ctx, w, r)
+					return 0, nil
+				}
+				base = str
+			}
+		}
+	}
+
 	for _, rule := range mr.rules {
 		// check zone.
 		zone := plugin.Zones(mr.zones).Matches(state.Name())
 		if zone == "" {
 			continue
 		}
-
 		ipMatch := matchWithPolicies(rule.policies, w, r)
 		if ipMatch {
 			mr.fwd.ServeDNS(ctx, w, r)
