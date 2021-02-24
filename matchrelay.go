@@ -51,19 +51,20 @@ func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns
 	state := request.Request{W: w, Req: r}
 
 	if len(mr.domains) > 0 {
-		// state.Name() will always have a trailing .
 		sArr := strings.Split(state.Name(), ".")
-		l := len(sArr)
-		if l > 2 {
-			base := sArr[l - 3] + "." + sArr[l - 2] + "."
-			for i := l - 3; i > 0; i = i - 1 {
-				str := sArr[i - 1] + "." + base
-				if _, ok := mr.domains[str]; ok {
-					mr.fwd.ServeDNS(ctx, w, r)
-					return 0, nil
-				}
-				base = str
+		if len(sArr) > 0 {
+			// state.Name() will always have a trailing .
+			// remove last element
+			sArr = sArr[:len(sArr)-1]
+		}
+		base := sArr[len(sArr) - 1]
+		for i := len(sArr) - 2; i >= 0; i = i - 1 {
+			str := sArr[i] + "."  + base
+			if _, ok := mr.domains[str]; ok {
+				mr.fwd.ServeDNS(ctx, w, r)
+				return 0, nil
 			}
+			base = str
 		}
 	}
 
