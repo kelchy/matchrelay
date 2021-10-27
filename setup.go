@@ -46,6 +46,7 @@ func setup(c *caddy.Controller) error {
 				log.Errorf("error opening matchrelay file %s", file)
 				return e
 			}
+			log.Debugf("processing file %s\n", file)
 			md5sum := md5.Sum(s)
 			buf = append(buf, s...)
 
@@ -65,10 +66,11 @@ func setup(c *caddy.Controller) error {
 							}
 							ms := md5.Sum(s)
 							if md5sum != ms {
-								log.Infof("Matchrelay new config MD5 = %x\n", ms)
+								log.Infof("Matchrelay new config %s MD5 = %x\n", file, ms)
 								md5sum = ms
 								buf = append(buf, s...)
 							}
+							log.Debugf("ignoring file %s no changes\n", file)
 						}
 						mr.Reload(buf)
 					}
