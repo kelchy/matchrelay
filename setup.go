@@ -36,16 +36,20 @@ func setup(c *caddy.Controller) error {
 
 	loop := make(chan bool)
 	c.OnStartup(func() error {
-		if mr.interval == 0 || mr.filename == "" {
+		if mr.interval == 0 || len(mr.filename) > 0 {
 			return nil
 		}
-		s, e := fileOpen(mr.filename)
-		if e != nil {
-			log.Errorf("error opening matchrelay file %s", mr.filename)
-			return e
+		var buf []byte
+		for file := range mr.filename {
+			s, e := fileOpen(file)
+			if e != nil {
+				log.Errorf("error opening matchrelay file %s", file)
+				return e
+			}
+			md5sum := md5.Sum(s)
+			buf := append(buf, s)
 		}
-		md5sum := md5.Sum(s)
-		mr.Reload(s)
+		mr.Reload(buf)
 
 		go func() {
 			ticker := time.NewTicker(mr.interval)
@@ -54,17 +58,21 @@ func setup(c *caddy.Controller) error {
 				case <-loop:
 					return
 				case <-ticker.C:
-					s, e := fileOpen(mr.filename)
-					if e != nil {
-						log.Errorf("error opening matchrelay file %s", mr.filename)
-						return
+					var buf []byte
+					for file := range mr.filename {
+						s, e := fileOpen(file)
+						if e != nil {
+							log.Errorf("error opening matchrelay file %s", file)
+							return
+						}
+						ms := md5.Sum(s)
+						if md5sum != ms {
+							log.Infof("Matchrelay new config MD5 = %x\n", ms)
+							md5sum = ms
+							buf = append(buf, s)
+						}
 					}
-					ms := md5.Sum(s)
-					if md5sum != ms {
-						log.Infof("Matchrelay new config MD5 = %x\n", ms)
-						md5sum = ms
-						mr.Reload(s)
-					}
+					mr.Reload(buf)
 				}
 			}
 		}()
@@ -135,7 +143,7 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 				if !filepath.IsAbs(fileName) && config.Root != "" {
 					fileName = filepath.Join(config.Root, fileName)
 				}
-				mr.filename = fileName
+				mr.filename = append(mr.filename, fileName)
 			default:
 				return mr, c.Errf("unexpected token %q; expect 'net', 'match', 'reload' or 'relay'", id)
 			}

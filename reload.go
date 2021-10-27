@@ -7,6 +7,7 @@ import (
 	"github.com/coredns/coredns/plugin/pkg/log"
 )
 
+// Reload - function which reloads the rules
 func (mr *MatchRelay) Reload(buf []byte) {
 	mr.rules = nil
 	lines := strings.Split(string(buf), "\n")

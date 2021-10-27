@@ -24,7 +24,7 @@ type MatchRelay struct{
 	zones		[]string
 	domains		map[string]string
 	interval	time.Duration
-	filename	string
+	filename	[]string
 }
 
 type rule struct {
@@ -36,17 +36,19 @@ type policy struct {
 	filter	*iptree.Tree
 }
 
+// New - function which creates a module instance on coredns
 func New() MatchRelay {
 	mr := MatchRelay{}
 	mr.fwd = forward.New()
 	return mr
 }
 
+// SetProxy - function which sets forwarding relay
 func (mr MatchRelay) SetProxy(proxy string) {
 	mr.fwd.SetProxy(forward.NewProxy(proxy, "dns"))
 }
 
-// ServeDNS implements the plugin.Handler interface.
+// ServeDNS - function which implements the plugin.Handler interface.
 func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
 
