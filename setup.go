@@ -47,7 +47,7 @@ func setup(c *caddy.Controller) error {
 				return e
 			}
 			md5sum := md5.Sum(s)
-			buf := append(buf, s...)
+			buf = append(buf, s...)
 
 			go func() {
 				ticker := time.NewTicker(mr.interval)
