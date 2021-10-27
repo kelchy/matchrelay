@@ -140,7 +140,7 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 				}
 			case "match":
 				// file based rules with own reload mechanism compatible with static rules above
-				fileName := strings.ToLower(remainingTokens[0])
+				fileName := remainingTokens[0]
 				config := dnsserver.GetConfig(c)
 				if !filepath.IsAbs(fileName) && config.Root != "" {
 					fileName = filepath.Join(config.Root, fileName)
