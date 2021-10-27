@@ -40,7 +40,7 @@ func setup(c *caddy.Controller) error {
 			return nil
 		}
 		var buf []byte
-		for file := range mr.filename {
+		for _, file := range mr.filename {
 			s, e := fileOpen(file)
 			if e != nil {
 				log.Errorf("error opening matchrelay file %s", file)
@@ -59,7 +59,7 @@ func setup(c *caddy.Controller) error {
 					return
 				case <-ticker.C:
 					var buf []byte
-					for file := range mr.filename {
+					for _, file := range mr.filename {
 						s, e := fileOpen(file)
 						if e != nil {
 							log.Errorf("error opening matchrelay file %s", file)
