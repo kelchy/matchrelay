@@ -1,4 +1,4 @@
-module matchrelay
+module github.com/kelchy/matchrelay
 
 go 1.13
 
