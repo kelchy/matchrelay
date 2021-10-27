@@ -46,7 +46,7 @@ func setup(c *caddy.Controller) error {
 				log.Errorf("error opening matchrelay file %s", file)
 				return e
 			}
-			log.Debugf("processing file %s\n", file)
+			log.Infof("processing file %s\n", file)
 			md5sum := md5.Sum(s)
 			buf = append(buf, s...)
 
@@ -70,7 +70,7 @@ func setup(c *caddy.Controller) error {
 								md5sum = ms
 								buf = append(buf, s...)
 							}
-							log.Debugf("ignoring file %s no changes\n", file)
+							log.Infof("ignoring file %s no changes\n", file)
 						}
 						mr.Reload(buf)
 					}
