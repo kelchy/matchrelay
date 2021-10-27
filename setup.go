@@ -47,35 +47,35 @@ func setup(c *caddy.Controller) error {
 				return e
 			}
 			md5sum := md5.Sum(s)
-			buf := append(buf, s)
+			buf := append(buf, s...)
+
+			go func() {
+				ticker := time.NewTicker(mr.interval)
+				for {
+					select {
+					case <-loop:
+						return
+					case <-ticker.C:
+						var buf []byte
+						for _, file := range mr.filename {
+							s, e := fileOpen(file)
+							if e != nil {
+								log.Errorf("error opening matchrelay file %s", file)
+								return
+							}
+							ms := md5.Sum(s)
+							if md5sum != ms {
+								log.Infof("Matchrelay new config MD5 = %x\n", ms)
+								md5sum = ms
+								buf = append(buf, s...)
+							}
+						}
+						mr.Reload(buf)
+					}
+				}
+			}()
 		}
 		mr.Reload(buf)
-
-		go func() {
-			ticker := time.NewTicker(mr.interval)
-			for {
-				select {
-				case <-loop:
-					return
-				case <-ticker.C:
-					var buf []byte
-					for _, file := range mr.filename {
-						s, e := fileOpen(file)
-						if e != nil {
-							log.Errorf("error opening matchrelay file %s", file)
-							return
-						}
-						ms := md5.Sum(s)
-						if md5sum != ms {
-							log.Infof("Matchrelay new config MD5 = %x\n", ms)
-							md5sum = ms
-							buf = append(buf, s)
-						}
-					}
-					mr.Reload(buf)
-				}
-			}
-		}()
 		return nil
 	})
 
