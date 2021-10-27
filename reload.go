@@ -23,6 +23,8 @@ func (mr *MatchRelay) Reload(buf []byte) {
 				r.policies = append(r.policies, p)
 
 			}
+		} else if  fields[0] == "domain" {
+			mr.domains[fields[1]] = ""
 		}
 	}
 	if len(r.policies) > 0 {
