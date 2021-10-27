@@ -145,6 +145,7 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 				if !filepath.IsAbs(fileName) && config.Root != "" {
 					fileName = filepath.Join(config.Root, fileName)
 				}
+				log.Infof("adding file %s\n", fileName)
 				mr.filename = append(mr.filename, fileName)
 			default:
 				return mr, c.Errf("unexpected token %q; expect 'net', 'match', 'reload' or 'relay'", id)
