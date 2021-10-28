@@ -34,6 +34,7 @@ func (mr *MatchRelay) Reload(buf []byte) {
 	if len(r.policies) > 0 {
 		mr.rules = append(mr.rules, r)
 	}
+	log.Infof("testing mr.domains www.xhamster.com value=%s\n", mr.domains["www.xhamster.com"])
 }
 
 func fileOpen(fileName string) ([]byte, error) {
