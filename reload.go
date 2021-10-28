@@ -27,7 +27,7 @@ func (mr *MatchRelay) Reload(buf []byte) {
 		} else if fields[0] == "domain" {
 			if fields[1] != "" {
 				log.Infof("adding to mr.domains %s\n", fields[1])
-				mr.domains[fields[1]] = ""
+				mr.domains[fields[1]] = fields[0]
 			}
 		}
 	}

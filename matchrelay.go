@@ -65,7 +65,7 @@ func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns
 		base := sArr[len(sArr) - 1]
 		for i := len(sArr) - 2; i >= 0; i = i - 1 {
 			str := sArr[i] + "."  + base
-			log.Infof("Matchrelay matching %s from %d entries\n", str, len(mr.domains))
+			log.Infof("Matchrelay matching %s from %d entries, value=%s\n", str, len(mr.domains), mr.domains[str])
 			if _, ok := mr.domains[str]; ok {
 				mr.fwd.ServeDNS(ctx, w, r)
 				return 0, nil
