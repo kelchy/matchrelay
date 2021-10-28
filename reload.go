@@ -26,7 +26,6 @@ func (mr *MatchRelay) Reload(buf []byte) {
 			}
 		} else if fields[0] == "domain" {
 			if fields[1] != "" {
-				log.Infof("adding to mr.domains %s\n", fields[1])
 				mr.domains[fields[1]] = fields[0]
 			}
 		}
@@ -34,7 +33,9 @@ func (mr *MatchRelay) Reload(buf []byte) {
 	if len(r.policies) > 0 {
 		mr.rules = append(mr.rules, r)
 	}
-	log.Infof("testing mr.domains www.xhamster.com value=%s\n", mr.domains["www.xhamster.com"])
+	for k, v := range mr.domains {
+		log.Infof("mr.domains key=%s value=%s\n", k, v)
+	}
 }
 
 func fileOpen(fileName string) ([]byte, error) {
