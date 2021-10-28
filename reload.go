@@ -27,8 +27,8 @@ func (mr *MatchRelay) Reload(buf []byte) {
 		} else if fields[0] == "domain" {
 			dom := strings.TrimSuffix(fields[1], "\n")
 			if dom != "" {
-				log.Infof("adding key %s to domain", fields[1])
-				mr.domains[fields[1]] = ""
+				log.Infof("adding key %s to domain", dom)
+				mr.domains[dom] = ""
 			}
 		}
 	}
