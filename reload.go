@@ -14,7 +14,6 @@ func (mr *MatchRelay) Reload(buf []byte) {
 	lines := strings.Split(string(buf), "\n")
 	r := rule{}
 	for _, line := range lines {
-		log.Infof("line %s\n`", line)
 		fields := strings.Split(line, " ")
 		if  fields[0] == "net" {
 			id := fields[0]
@@ -27,6 +26,7 @@ func (mr *MatchRelay) Reload(buf []byte) {
 			}
 		} else if fields[0] == "domain" {
 			if fields[1] != "" {
+				log.Infof("adding to mr.domains %s\n", fields[1])
 				mr.domains[fields[1]] = ""
 			}
 		}
