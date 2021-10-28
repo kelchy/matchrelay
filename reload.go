@@ -10,7 +10,7 @@ import (
 // Reload - function which reloads the rules
 func (mr *MatchRelay) Reload(buf []byte) {
 	mr.rules = nil
-	mr.domains = make(map[string][16]byte)
+	mr.domains = make(map[string]string)
 	lines := strings.Split(string(buf), "\n")
 	r := rule{}
 	for _, line := range lines {
