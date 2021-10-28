@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 	"path/filepath"
-	"crypto/md5"
 
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
@@ -36,16 +35,9 @@ func setup(c *caddy.Controller) error {
 
 	loop := make(chan bool)
 	c.OnStartup(func() error {
-		if mr.interval == 0 || mr.filename == "" {
+		if mr.interval == 0 {
 			return nil
 		}
-		s, e := fileOpen(mr.filename)
-		if e != nil {
-			log.Errorf("error opening matchrelay file %s", mr.filename)
-			return e
-		}
-		md5sum := md5.Sum(s)
-		mr.Reload(s)
 
 		go func() {
 			ticker := time.NewTicker(mr.interval)
@@ -54,17 +46,7 @@ func setup(c *caddy.Controller) error {
 				case <-loop:
 					return
 				case <-ticker.C:
-					s, e := fileOpen(mr.filename)
-					if e != nil {
-						log.Errorf("error opening matchrelay file %s", mr.filename)
-						return
-					}
-					ms := md5.Sum(s)
-					if md5sum != ms {
-						log.Infof("Matchrelay new config MD5 = %x\n", ms)
-						md5sum = ms
-						mr.Reload(s)
-					}
+					mr.pushMatch()
 				}
 			}
 		}()
@@ -89,6 +71,7 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 	// matchrelay takes zone details from server block, not on config block
 	mr.zones = make([]string, len(c.ServerBlockKeys))
 	mr.domains = make(map[string]string)
+	mr.md5sum = make(map[string][16]byte)
 	copy(mr.zones, c.ServerBlockKeys)
 	for i := range mr.zones {
 		mr.zones[i] = plugin.Host(mr.zones[i]).Normalize()
@@ -130,12 +113,12 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 				}
 			case "match":
 				// file based rules with own reload mechanism compatible with static rules above
-				fileName := strings.ToLower(remainingTokens[0])
+				fileName := remainingTokens[0]
 				config := dnsserver.GetConfig(c)
 				if !filepath.IsAbs(fileName) && config.Root != "" {
 					fileName = filepath.Join(config.Root, fileName)
 				}
-				mr.filename = fileName
+				mr.files = append(mr.files, fileName)
 			default:
 				return mr, c.Errf("unexpected token %q; expect 'net', 'match', 'reload' or 'relay'", id)
 			}
@@ -144,6 +127,7 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 			mr.rules = append(mr.rules, r)
 		}
 	}
+	mr.pushMatch()
 	return mr, nil
 }
 
