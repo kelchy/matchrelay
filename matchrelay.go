@@ -108,7 +108,7 @@ func (mr *MatchRelay) pushMatch() error {
 			mr.md5sum[file] = md5sum
 		}
 		// insert a new line character (10) in between files just to be sure
-		buf = append(buf, 10, s...)
+		buf = append(buf, append(s, 10)...)
 	}
 	if changed {
 		log.Infof("batch files %s", string(buf))
