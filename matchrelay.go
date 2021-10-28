@@ -98,7 +98,6 @@ func (mr *MatchRelay) pushMatch() error {
 			log.Errorf("pushMatch error opening matchrelay file %s", file)
 			return e
 		}
-		log.Infof("processing file %s\n", file)
 		md5sum := md5.Sum(s)
 		if  mr.md5sum[file] != md5sum {
 			log.Infof("Matchrelay new config %s MD5 = %x\n", file, md5sum)
