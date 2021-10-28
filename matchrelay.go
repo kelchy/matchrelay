@@ -6,10 +6,12 @@ import (
 	"net"
 	"time"
 	"strings"
+	"crypto/md5"
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/forward"
 	"github.com/coredns/coredns/request"
+	"github.com/coredns/coredns/plugin/pkg/log"
 
 	"github.com/infobloxopen/go-trees/iptree"
 	"github.com/miekg/dns"
@@ -24,7 +26,8 @@ type MatchRelay struct{
 	zones		[]string
 	domains		map[string]string
 	interval	time.Duration
-	filename	[]string
+	files		[]string
+	md5sum		map[string][16]byte
 }
 
 type rule struct {
@@ -84,6 +87,30 @@ func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns
 		}
 	}
 	return plugin.NextOrFailure(state.Name(), mr.Next, ctx, w, r)
+}
+
+func (mr *MatchRelay) pushMatch() error {
+	var buf []byte
+	changed := false
+	for _, file := range mr.files {
+		s, e := fileOpen(file)
+		if e != nil {
+			log.Errorf("pushMatch error opening matchrelay file %s", file)
+			return e
+		}
+		log.Infof("processing file %s\n", file)
+		md5sum := md5.Sum(s)
+		if  mr.md5sum[file] != md5sum {
+			log.Infof("Matchrelay new config %s MD5 = %x\n", file, md5sum)
+			changed = true
+			mr.md5sum[file] = md5sum
+		}
+		buf = append(buf, s...)
+	}
+	if changed {
+		mr.Reload(buf)
+	}
+	return nil
 }
 
 // matchWithPolicies matches the DNS query with a list of Match polices and returns boolean

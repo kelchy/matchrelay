@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 	"path/filepath"
-	"crypto/md5"
 
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
@@ -36,48 +35,21 @@ func setup(c *caddy.Controller) error {
 
 	loop := make(chan bool)
 	c.OnStartup(func() error {
-		if mr.interval == 0 || len(mr.filename) > 0 {
+		if mr.interval == 0 {
 			return nil
 		}
-		var buf []byte
-		for _, file := range mr.filename {
-			s, e := fileOpen(file)
-			if e != nil {
-				log.Errorf("error opening matchrelay file %s", file)
-				return e
-			}
-			log.Infof("processing file %s\n", file)
-			md5sum := md5.Sum(s)
-			buf = append(buf, s...)
 
-			go func() {
-				ticker := time.NewTicker(mr.interval)
-				for {
-					select {
-					case <-loop:
-						return
-					case <-ticker.C:
-						var buf []byte
-						for _, file := range mr.filename {
-							s, e := fileOpen(file)
-							if e != nil {
-								log.Errorf("error opening matchrelay file %s", file)
-								return
-							}
-							ms := md5.Sum(s)
-							if md5sum != ms {
-								log.Infof("Matchrelay new config %s MD5 = %x\n", file, ms)
-								md5sum = ms
-								buf = append(buf, s...)
-							}
-							log.Infof("ignoring file %s no changes\n", file)
-						}
-						mr.Reload(buf)
-					}
+		go func() {
+			ticker := time.NewTicker(mr.interval)
+			for {
+				select {
+				case <-loop:
+					return
+				case <-ticker.C:
+					mr.pushMatch()
 				}
-			}()
-		}
-		mr.Reload(buf)
+			}
+		}()
 		return nil
 	})
 
@@ -99,6 +71,7 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 	// matchrelay takes zone details from server block, not on config block
 	mr.zones = make([]string, len(c.ServerBlockKeys))
 	mr.domains = make(map[string]string)
+	mr.md5sum = make(map[string][16]byte)
 	copy(mr.zones, c.ServerBlockKeys)
 	for i := range mr.zones {
 		mr.zones[i] = plugin.Host(mr.zones[i]).Normalize()
@@ -146,7 +119,7 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 					fileName = filepath.Join(config.Root, fileName)
 				}
 				log.Infof("adding file %s\n", fileName)
-				mr.filename = append(mr.filename, fileName)
+				mr.files = append(mr.files, fileName)
 			default:
 				return mr, c.Errf("unexpected token %q; expect 'net', 'match', 'reload' or 'relay'", id)
 			}
@@ -155,6 +128,7 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 			mr.rules = append(mr.rules, r)
 		}
 	}
+	mr.pushMatch()
 	return mr, nil
 }
 
