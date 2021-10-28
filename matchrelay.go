@@ -6,10 +6,12 @@ import (
 	"net"
 	"time"
 	"strings"
+	"crypto/md5"
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/forward"
 	"github.com/coredns/coredns/request"
+	"github.com/coredns/coredns/plugin/pkg/log"
 
 	"github.com/infobloxopen/go-trees/iptree"
 	"github.com/miekg/dns"
@@ -24,7 +26,8 @@ type MatchRelay struct{
 	zones		[]string
 	domains		map[string]string
 	interval	time.Duration
-	filename	string
+	files		[]string
+	md5sum		map[string][16]byte
 }
 
 type rule struct {
@@ -36,17 +39,19 @@ type policy struct {
 	filter	*iptree.Tree
 }
 
+// New - function which creates a module instance on coredns
 func New() MatchRelay {
 	mr := MatchRelay{}
 	mr.fwd = forward.New()
 	return mr
 }
 
+// SetProxy - function which sets forwarding relay
 func (mr MatchRelay) SetProxy(proxy string) {
 	mr.fwd.SetProxy(forward.NewProxy(proxy, "dns"))
 }
 
-// ServeDNS implements the plugin.Handler interface.
+// ServeDNS - function which implements the plugin.Handler interface.
 func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
 
@@ -66,6 +71,7 @@ func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns
 			}
 			base = str
 		}
+		return plugin.NextOrFailure(state.Name(), mr.Next, ctx, w, r)
 	}
 
 	for _, rule := range mr.rules {
@@ -82,6 +88,30 @@ func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns
 		}
 	}
 	return plugin.NextOrFailure(state.Name(), mr.Next, ctx, w, r)
+}
+
+func (mr *MatchRelay) pushMatch() error {
+	var buf []byte
+	changed := false
+	for _, file := range mr.files {
+		s, e := fileOpen(file)
+		if e != nil {
+			log.Errorf("pushMatch error opening matchrelay file %s", file)
+			return e
+		}
+		md5sum := md5.Sum(s)
+		if  mr.md5sum[file] != md5sum {
+			log.Infof("Matchrelay new config %s MD5 = %x\n", file, md5sum)
+			changed = true
+			mr.md5sum[file] = md5sum
+		}
+		// insert a new line character (10) in between files just to be sure
+		buf = append(buf, append(s, 10)...)
+	}
+	if changed {
+		mr.Reload(buf)
+	}
+	return nil
 }
 
 // matchWithPolicies matches the DNS query with a list of Match polices and returns boolean
