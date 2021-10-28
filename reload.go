@@ -10,7 +10,7 @@ import (
 // Reload - function which reloads the rules
 func (mr *MatchRelay) Reload(buf []byte) {
 	mr.rules = nil
-	mr.domains = nil
+	mr.domains = make(map[string][16]byte)
 	lines := strings.Split(string(buf), "\n")
 	r := rule{}
 	for _, line := range lines {
@@ -24,7 +24,7 @@ func (mr *MatchRelay) Reload(buf []byte) {
 				r.policies = append(r.policies, p)
 
 			}
-		} else if  fields[0] == "domain" {
+		} else if fields[0] == "domain" && fields[1] != "" {
 			mr.domains[fields[1]] = ""
 		}
 	}
