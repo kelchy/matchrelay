@@ -14,6 +14,7 @@ func (mr *MatchRelay) Reload(buf []byte) {
 	lines := strings.Split(string(buf), "\n")
 	r := rule{}
 	for _, line := range lines {
+		log.Infof("line %s\n`", line)
 		fields := strings.Split(line, " ")
 		if  fields[0] == "net" {
 			id := fields[0]

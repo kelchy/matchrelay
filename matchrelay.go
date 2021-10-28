@@ -111,7 +111,6 @@ func (mr *MatchRelay) pushMatch() error {
 		buf = append(buf, append(s, 10)...)
 	}
 	if changed {
-		log.Infof("batch files %s", string(buf))
 		mr.Reload(buf)
 	}
 	return nil
