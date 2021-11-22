@@ -66,8 +66,7 @@ func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns
 		for i := len(sArr) - 2; i >= 0; i = i - 1 {
 			str := sArr[i] + "."  + base
 			if _, ok := mr.domains[str]; ok {
-				mr.fwd.ServeDNS(ctx, w, r)
-				return 0, nil
+				return mr.fwd.ServeDNS(ctx, w, r)
 			}
 			base = str
 		}
@@ -82,9 +81,7 @@ func (mr *MatchRelay) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns
 		}
 		ipMatch := matchWithPolicies(rule.policies, w, r)
 		if ipMatch {
-			mr.fwd.ServeDNS(ctx, w, r)
-
-			return 0, nil
+			return mr.fwd.ServeDNS(ctx, w, r)
 		}
 	}
 	return plugin.NextOrFailure(state.Name(), mr.Next, ctx, w, r)
