@@ -45,7 +45,6 @@ type policy struct {
 func New() MatchRelay {
 	mr := MatchRelay{}
 	mr.fwd = forward.New()
-	mr.fwd.p = &roundRobin{}
 	return mr
 }
 
