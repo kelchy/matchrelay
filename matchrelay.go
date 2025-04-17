@@ -12,6 +12,8 @@ import (
 	"github.com/coredns/coredns/plugin/forward"
 	"github.com/coredns/coredns/request"
 	"github.com/coredns/coredns/plugin/pkg/log"
+	"github.com/coredns/coredns/plugin/pkg/proxy"
+	"github.com/coredns/coredns/plugin/pkg/transport"
 
 	"github.com/infobloxopen/go-trees/iptree"
 	"github.com/miekg/dns"
@@ -43,12 +45,13 @@ type policy struct {
 func New() MatchRelay {
 	mr := MatchRelay{}
 	mr.fwd = forward.New()
+	mr.fwd.p = &roundRobin{}
 	return mr
 }
 
 // SetProxy - function which sets forwarding relay
-func (mr MatchRelay) SetProxy(proxy string) {
-	mr.fwd.SetProxy(forward.NewProxy(proxy, "dns"))
+func (mr MatchRelay) SetProxy(proxystr string) {
+	mr.fwd.SetProxy(proxy.NewProxy("matchrelay", proxystr, transport.DNS))
 }
 
 // ServeDNS - function which implements the plugin.Handler interface.
