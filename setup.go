@@ -70,12 +70,13 @@ func parse(c *caddy.Controller) (MatchRelay, error) {
 	mr := New()
 	// matchrelay takes zone details from server block, not on config block
 	mr.zones = make([]string, len(c.ServerBlockKeys))
+	copy(mr.zones, c.ServerBlockKeys)
+	// matchrelay does not support zones and thus no need to user deprecated Normalize()
+	//for i := range mr.zones {
+	//	mr.zones[i] = plugin.Host(mr.zones[i]).Normalize()
+	//}
 	mr.domains = make(map[string]string)
 	mr.md5sum = make(map[string][16]byte)
-	copy(mr.zones, c.ServerBlockKeys)
-	for i := range mr.zones {
-		mr.zones[i] = plugin.Host(mr.zones[i]).Normalize()
-	}
 	for c.Next() {
 		r := rule{}
 		for c.NextBlock() {
